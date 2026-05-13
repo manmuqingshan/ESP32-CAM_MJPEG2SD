@@ -29,7 +29,7 @@ The ESP32 cannot support all of the features as it will run out of heap space. F
 ***This is a complex app and some users are raising issues when the app reports a warning, but this is the app notifying the user that there is an problem with their setup, which only the user can fix. Be aware that some clone boards have different specs to the original, eg PSRAM size. Please only raise issues for actual bugs (ERR messages, unhandled library error or crash). Thanks.  
 To suggest an improvement or enhancement use Discussions.*** 
 
-Changes for version up to 10.9.3:
+Changes for version up to 10.9.4:
 * Addition of [Ethernet](#configuration-web-page) network selection instead of Wifi
 * Pins added for [`CAMERA_MODEL_Waveshare_ESP32_S3_ETH`](https://www.waveshare.com/wiki/ESP32-S3-ETH)
 * Define pins for external W5500 Ethernet controller
@@ -40,6 +40,7 @@ Changes for version up to 10.9.3:
 * Fix for issue [#697](https://github.com/s60sc/ESP32-CAM_MJPEG2SD/issues/697)
 * Fix for issue [#698](https://github.com/s60sc/ESP32-CAM_MJPEG2SD/issues/698)
 * Internal improvements
+* Night time duration based on location
 
 ## Purpose
 
@@ -74,8 +75,6 @@ The AVI files are named using a date time format **YYYYMMDD_HHMMSS** with added 
 The ESP32 time is set from an NTP server or connected browser client.
 
 ## Installation
-
-**Note that this app can be unstable on boards with only 2MB PSRAM.**
 
 Download github files into the Arduino IDE sketch folder, removing `-master` from the application folder name.
 Compile with at least arduino-esp32 core v3.1.1 which contains network fixes and frame selection changes.

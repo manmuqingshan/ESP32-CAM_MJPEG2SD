@@ -465,7 +465,7 @@ static float getMagneticDeclination() {
           }
         } else LOG_WRN("'declination' field not present");
       } else LOG_WRN("Magnetic declination request failed, error: %s", http.errorToString(httpCode).c_str());    
-      http.end();     
+      http.end();
     }
     remoteServerClose(hclient);
   }

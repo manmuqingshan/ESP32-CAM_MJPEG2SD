@@ -26,8 +26,6 @@
 #include TINY_ML_LIB
 #endif
 
-#define RESIZE_DIM 96  // dimensions of resized motion bitmap
-#define RESIZE_DIM_SQ (RESIZE_DIM * RESIZE_DIM) // pixels in bitmap
 #define INACTIVE_COLOR 96 // color for inactive motion pixel
 #define JPEG_QUAL 80 // % quality for generated motion detect jpeg
   
@@ -165,7 +163,7 @@ static int getImageData(size_t offset, size_t length, float *out_ptr) {
   return 0;
 }
 
-static bool tinyMLclassify() {
+static bool tinyMLclassify(size_t (RESIZE_DIM) {
   // convert input data to appropriate format
   bool out = false;
   uint32_t dTime = millis(); 
@@ -204,6 +202,14 @@ static bool tinyMLclassify() {
 bool checkMotion(camera_fb_t* fb, bool motionStatus, bool lightLevelOnly) {
   // check difference between current and previous image (subtract background)
   // convert image from JPEG to downscaled RGB888 or 8 bit grayscale bitmap
+  size_t RESIZE_DIM = 96;  // dimensions of resized motion bitmap
+  static bool firstCall = true;
+  if (firstCall) {
+    if (ESP.getPsramSize() < 3 * ONEMEG) RESIZE_DIM = 64; // otherwise insufficient PSRAM (issue #706)
+    firstCall = false;
+  }
+  size_t RESIZE_DIM_SQ = (RESIZE_DIM * RESIZE_DIM); // pixels in bitmap
+  
   if (fsizePtr > FRAMESIZE_SXGA) return false;
   uint32_t dTime = millis();
   uint32_t lux = 0;
@@ -322,7 +328,7 @@ bool checkMotion(camera_fb_t* fb, bool motionStatus, bool lightLevelOnly) {
         motionStatus = true; // motion started
 #if INCLUDE_TINYML
         // pass image to TinyML for classification
-        if (mlUse) if (!tinyMLclassify()) {
+        if (mlUse) if (!tinyMLclassify(RESIZE_DIM)) {
           motionCnt = 0; // not classified, so cancel motion
           motionStatus = false;
         }
@@ -356,7 +362,7 @@ bool checkMotion(camera_fb_t* fb, bool motionStatus, bool lightLevelOnly) {
     if (motionStatus) LOG_VRB("*** Motion - ongoing %lu frames", motionCnt);
   }
   
-  if (dbgVerbose) checkMemory();  
+  if (dbgVerbose) checkMemory();
   LOG_VRB("============================");
   // motionStatus indicates whether motion previously ongoing or not
   return nightTime ? false : motionStatus;

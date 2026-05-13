@@ -98,14 +98,22 @@ bool checkAuth(httpd_req_t* req) {
     size_t credLen = strlen(Auth_Name) + strlen(Auth_Pass) + 2; // +2 for colon & terminator
     char credentials[credLen];
     snprintf(credentials, credLen, "%s:%s", Auth_Name, Auth_Pass);
-    size_t authLen = httpd_req_get_hdr_value_len(req, "Authorization") + 1;
-    if (authLen) {
+    const char* encodedCreds = encode64(credentials);
+    size_t expectedLen = strlen("Basic ") + strlen(encodedCreds) + 1;
+    char expectedAuth[expectedLen];
+    snprintf(expectedAuth, expectedLen, "Basic %s", encodedCreds);
+    size_t authHdrLen = httpd_req_get_hdr_value_len(req, "Authorization");
+    bool authenticated = false;
+
+    if (authHdrLen) {
       // check credentials supplied are valid
+      size_t authLen = authHdrLen + 1;
       char auth[authLen];
-      httpd_req_get_hdr_value_str(req, "Authorization", auth, authLen);
-      if (!strstr(auth, encode64(credentials))) authLen = 0; // credentials not valid
+      if (httpd_req_get_hdr_value_str(req, "Authorization", auth, authLen) == ESP_OK) {
+        if (strcmp(auth, expectedAuth) == 0) authenticated = true;
+      }
     }
-    if (!authLen) {
+    if (!authenticated) {
       // not authenticated
       httpd_resp_set_hdr(req, "WWW-Authenticate", "Basic");
       httpd_resp_set_status(req, "401 Unauthorised");
@@ -177,26 +185,27 @@ static esp_err_t webHandler(httpd_req_t* req) {
   urlDecode(variable);
 
   // check file extension to determine required processing before response sent to browser
+  size_t varLen = strlen(variable);
   if (!strcmp(variable, "OTA.htm")) {
     // request for built in OTA page, if index html defective
     httpd_resp_set_type(req, "text/html"); 
     return httpd_resp_sendstr(req, otaPage_html);
-  } else if (!strcmp(HTML_EXT, variable+(strlen(variable)-strlen(HTML_EXT)))) {
+  } else if (!strcmp(HTML_EXT, variable+(varLen-strlen(HTML_EXT)))) {
     // any other html file
     httpd_resp_set_type(req, "text/html");
-  } else if (!strcmp(JS_EXT, variable+(strlen(variable)-strlen(JS_EXT)))) {
+  } else if (!strcmp(JS_EXT, variable+(varLen-strlen(JS_EXT)))) {
     // any js file
     httpd_resp_set_type(req, "text/javascript");
-  } else if (!strcmp(CSS_EXT, variable+(strlen(variable)-strlen(CSS_EXT)))) {
+  } else if (!strcmp(CSS_EXT, variable+(varLen-strlen(CSS_EXT)))) {
     // any css file
     httpd_resp_set_type(req, "text/css");
-  } else if (!strcmp(TEXT_EXT, variable+(strlen(variable)-strlen(TEXT_EXT)))) {
+  } else if (!strcmp(TEXT_EXT, variable+(varLen-strlen(TEXT_EXT)))) {
     // any text file
     httpd_resp_set_type(req, "text/plain");
-  } else if (!strcmp(ICO_EXT, variable+(strlen(variable)-strlen(ICO_EXT)))) {
+  } else if (!strcmp(ICO_EXT, variable+(varLen-strlen(ICO_EXT)))) {
     // any icon file
     httpd_resp_set_type(req, "image/x-icon");
-  } else if (!strcmp(SVG_EXT, variable+(strlen(variable)-strlen(SVG_EXT)))) {
+  } else if (!strcmp(SVG_EXT, variable+(varLen-strlen(SVG_EXT)))) {
     // any svg file
     httpd_resp_set_type(req, "image/svg+xml");
   } else LOG_WRN("Unknown file type %s", variable);  

@@ -455,7 +455,7 @@ void appSpecificWsBinHandler(uint8_t* wsMsg, size_t wsMsgLen) {
 #endif
 }
 
-void buildAppJsonString(bool filter) {
+char* buildAppJsonString(bool filter) {
   // build app specific part of json string
   char* p = jsonBuff + 1;
   p += sprintf(p, "\"llevel\":%u,", lightLevel);
@@ -465,28 +465,28 @@ void buildAppJsonString(bool filter) {
   else p += sprintf(p, "\"atemp\":\"n/a\",");
   float currentVoltage = readVoltage();
   if (currentVoltage < 0) p += sprintf(p, "\"battv\":\"n/a\",");
-  else p += sprintf(p, "\"battv\":\"%0.1fV\",", currentVoltage); 
+  else p += sprintf(p, "\"battv\":\"%0.1fV\",", currentVoltage);
   p += sprintf(p, "\"camModel\":\"%s\",", camModel);
 #if INCLUDE_PERIPH
-  p += sprintf(p, "\"SVactive\":\"%d\",", SVactive); 
+  p += sprintf(p, "\"SVactive\":\"%d\",", SVactive);
  #if INCLUDE_AUDIO
-  p += sprintf(p, "\"AudActive\":\"%d\",", AudActive); 
+  p += sprintf(p, "\"AudActive\":\"%d\",", AudActive);
  #endif
  #if (INCLUDE_PGRAM)
-  p += sprintf(p, "\"PGactive\":\"%d\",", PGactive); 
+  p += sprintf(p, "\"PGactive\":\"%d\",", PGactive);
  #endif
 #endif
 #if INCLUDE_MCPWM
-  p += sprintf(p, "\"maxSteerAngle\":\"%d\",", maxSteerAngle); 
+  p += sprintf(p, "\"maxSteerAngle\":\"%d\",", maxSteerAngle);
   p += sprintf(p, "\"maxDutyCycle\":\"%d\",", maxDutyCycle);
-  p += sprintf(p, "\"minDutyCycle\":\"%d\",", minDutyCycle);  
-  p += sprintf(p, "\"allowReverse\":\"%d\",", allowReverse);   
+  p += sprintf(p, "\"minDutyCycle\":\"%d\",", minDutyCycle);
+  p += sprintf(p, "\"allowReverse\":\"%d\",", allowReverse);
   p += sprintf(p, "\"autoControl\":\"%d\",", autoControl);
-  p += sprintf(p, "\"waitTime\":\"%d\",", waitTime); 
-  p += sprintf(p, "\"RCactive\":\"%d\",", RCactive); 
-  p += sprintf(p, "\"heartbeatRC\":\"%d\",", heartbeatRC); 
+  p += sprintf(p, "\"waitTime\":\"%d\",", waitTime);
+  p += sprintf(p, "\"RCactive\":\"%d\",", RCactive);
+  p += sprintf(p, "\"heartbeatRC\":\"%d\",", heartbeatRC);
 #endif
-  p += sprintf(p, "\"sustainId\":\"%u\",", sustainId);     
+  p += sprintf(p, "\"sustainId\":\"%u\",", sustainId);
   // Extend info
 #ifndef AUXILIARY
   uint8_t cardType = 99; // not MMC
@@ -494,24 +494,25 @@ void buildAppJsonString(bool filter) {
   if (cardType == CARD_NONE) p += sprintf(p, "\"card\":\"%s\",", "NO card");
   else {
     if (!filter) {
-      if (cardType == CARD_MMC) p += sprintf(p, "\"card\":\"%s\",", "MMC"); 
+      if (cardType == CARD_MMC) p += sprintf(p, "\"card\":\"%s\",", "MMC");
       else if (cardType == CARD_SD) p += sprintf(p, "\"card\":\"%s\",", "SDSC");
-      else if (cardType == CARD_SDHC) p += sprintf(p, "\"card\":\"%s\",", "SDHC"); 
-      else if (cardType == 99) p += sprintf(p, "\"card\":\"%s\",", "LittleFS"); 
+      else if (cardType == CARD_SDHC) p += sprintf(p, "\"card\":\"%s\",", "SDHC");
+      else if (cardType == 99) p += sprintf(p, "\"card\":\"%s\",", "LittleFS");
     }
     if ((fs::SDMMCFS*)&STORAGE == &SD_MMC) p += sprintf(p, "\"card_size\":\"%s\",", fmtSize(SD_MMC.cardSize()));
     p += sprintf(p, "\"used_bytes\":\"%s\",", fmtSize(STORAGE.usedBytes()));
     p += sprintf(p, "\"free_bytes\":\"%s\",", fmtSize(STORAGE.totalBytes() - STORAGE.usedBytes()));
     p += sprintf(p, "\"total_bytes\":\"%s\",", fmtSize(STORAGE.totalBytes()));
   }
-  p += sprintf(p, "\"free_psram\":\"%s\",", fmtSize(ESP.getFreePsram()));     
+  p += sprintf(p, "\"free_psram\":\"%s\",", fmtSize(ESP.getFreePsram()));
 #endif
 #if INCLUDE_FTP_HFS
-  p += sprintf(p, "\"progressBar\":%d,", percentLoaded);  
+  p += sprintf(p, "\"progressBar\":%d,", percentLoaded);
   if (percentLoaded == 100) percentLoaded = 0;
 #endif
-  //p += sprintf(p, "\"vcc\":\"%i V\",", ESP.getVcc() / 1023.0F; ); 
+  //p += sprintf(p, "\"vcc\":\"%i V\",", ESP.getVcc() / 1023.0F; );
   *p = 0;
+  return p;
 }
 
 /******************************************************************/
@@ -526,11 +527,9 @@ void externalAlert(const char* subject, const char* message) {
 #endif
 }
 
-void displayAudioLed(int16_t audioSample) {
-}
+void displayAudioLed(int16_t audioSample) {}
 
-void setupAudioLed() {
-}
+void setupAudioLed() {}
 
 int8_t checkPotVol(int8_t adjVol) {
   return adjVol; // dummy
@@ -544,6 +543,7 @@ void applyFilters() {
 float readVoltage() {
   return -1.0;
 }
+
 float readTemperature(bool isCelsius, bool onlyDS18) {
   return readInternalTemp();
 }
@@ -645,9 +645,36 @@ void startHeartbeat() {
     if (heartBeatHandle == NULL) xTaskCreateWithCaps(&heartBeatTask, "heartBeatTask", HB_STACK_SIZE, NULL, HB_PRI, &heartBeatHandle, STACK_MEM);
   }
 }
-#endif 
+#endif
 
-void doAppPing() {
+#define EXT_NOCT_HOST "api.sunrise-sunset.org"
+#define EXT_NOCT_PATH "/json?lat=%0.6f&lng=%0.6f&formatted=0"
+void getNocturnal() {
+  // Get length of current location night time in secs
+  if (doGetExtIP) { 
+    NetworkClientSecure hclient;
+    if (remoteServerConnect(hclient, EXT_NOCT_HOST, HTTPS_PORT, "", GETEXTNOCT)) {
+      HTTPClient http;
+      int httpCode = HTTP_CODE_NOT_FOUND;
+      char extNoctPath[100];
+      sprintf(extNoctPath, EXT_NOCT_PATH, latLon[0], latLon[1]);
+      if (http.begin(hclient, EXT_NOCT_HOST, HTTPS_PORT, extNoctPath)) {
+        httpCode = http.GET();
+        if (httpCode == HTTP_CODE_OK) {
+          String payload = http.getString();
+          char jsonVal[FILE_NAME_LEN] = "";
+          if (getJsonValue(payload.c_str(), "day_length", jsonVal)) deepSleepTimer = DAY_LENGTH - atoi(jsonVal);
+          else LOG_WRN("'day_length' field not present");
+        } else LOG_WRN("Noctural duration request failed, error: %s", http.errorToString(httpCode).c_str());
+        http.end();
+      }
+      remoteServerClose(hclient);
+    }
+  }
+  if (deepSleepTimer) LOG_INF("Night time duration: %lu secs at Lat: %0.6f, Lon: %0.6f", deepSleepTimer, latLon[0], latLon[1]);
+}
+
+void doAppPing(bool timeSynced) {
   if (DEBUG_MEM) {
     currentStackUsage();
     checkMemory();
@@ -666,16 +693,11 @@ void doAppPing() {
 #if INCLUDE_EXTHB
   if (external_heartbeat_active) sendExternalHeartbeat();
 #endif
-#if INCLUDE_PERIPH
-    static bool atNight = false;
-#endif
   // check for night time actions
+  static bool atNight = false;
+  if (wakeUse && wakePin < 0 && deepSleepTimer == 0 && timeSynced) getNocturnal();
   if (isNight(nightSwitch)) {
-    if (wakeUse && wakePin) {
-      // to use LDR on wake pin, connect it between pin and 3V3
-      // uses internal pulldown resistor as voltage divider
-      // but may need to add external pull down between pin
-      // and GND to alter required light level for wakeup
+    if (wakeUse) {
 #ifndef AUXILIARY
       digitalWrite(PWDN_GPIO_NUM, 1); // power down camera
 #endif
@@ -907,9 +929,9 @@ servoCenter~90~6~N~Angle at which servo centered
 voltDivider~2~3~N~Voltage divider resistor ratio
 voltLow~3~3~N~Warning level for low voltage
 voltInterval~5~3~N~Voltage check interval (mins)
-voltPin~~3~N~ADC Pin used for battery voltage
+voltPin~-1~3~N~ADC Pin used for battery voltage
 voltUse~0~3~C~Use Voltage check
-wakePin~~3~N~Pin used to wake app from sleep
+wakePin~-1~3~N~Pin used to wake app from sleep
 wakeLevel~1~3~N~Pin level (0,1) to wake app from sleep
 wakeUse~0~3~C~Deep sleep app during night
 mqtt_active~0~2~C~Mqtt enabled

@@ -124,11 +124,23 @@ static bool emailSend(const char* mimeType = MIME_TYPE, const char* fileName = A
       sprintf(content, "Content-Disposition: attachment; filename=\"%s\"; size=%d;", fileName, alertBufferSize); 
       
       client.println(content); 
-      // base64 encode attachment and send out in chunks
+      // base64 encode attachment and buffer for output
       size_t chunkSize = 3;
-      for (size_t i = 0; i < alertBufferSize; i += chunkSize) 
-        client.write(encode64chunk(alertBuffer + i, min(alertBufferSize - i, chunkSize)), 4);
-    } 
+      uint8_t* outBuf = (uint8_t*)ps_malloc(1024); // Buffer for batched output
+      if (outBuf) {
+        size_t outLen = 0;
+        for (size_t i = 0; i < alertBufferSize; i += chunkSize) {
+          memcpy(outBuf + outLen, encode64chunk(alertBuffer + i, min(alertBufferSize - i, chunkSize)), 4);
+          outLen += 4;
+          if (outLen >= 1024) {
+            client.write(outBuf, outLen);
+            outLen = 0;
+          }
+        }
+        if (outLen > 0) client.write(outBuf, outLen);
+        free(outBuf);
+      } else LOG_ERR("Unable to alloc outBuf");
+    }
     client.println("\n"); // two lines to finish header
         
     // close message data and quit

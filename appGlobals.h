@@ -12,7 +12,7 @@
 
 // User's ESP32 cam board
 #if defined(CONFIG_IDF_TARGET_ESP32)
-#define CAMERA_MODEL_AI_THINKER 
+#define CAMERA_MODEL_AI_THINKER
 //#define CAMERA_MODEL_WROVER_KIT 
 //#define CAMERA_MODEL_ESP_EYE 
 //#define CAMERA_MODEL_M5STACK_PSRAM 
@@ -78,10 +78,10 @@
 #define INCLUDE_I2C false     // periphsI2C.cpp (support for I2C peripherals)
 
 // if INCLUDE_I2C true, set each I2C device used to true and instal additional library if required
-#define USE_SSD1306 false  // esp8266-oled-ssd1306 library
+#define USE_SSD1306 false  // Needs esp8266-oled-ssd1306 library
 #define USE_BMx280 false   // NMP280, BME280. Needs BMx280MI library
 #define USE_MPU false      // MPU6050, MPU9250, MPU9255. MPU9250 needs hideakitai MPU9250 library
-#define USE_DS3231 false   // Makuna Rtc library
+#define USE_DS3231 false   // Needs Makuna Rtc library
 #define USE_LCD1602 false  // none
 
 // To include Edge Impulse arduino library for additional motion detect filtering
@@ -113,7 +113,7 @@
 #endif
 #include "camera_pins.h"
 
-#define STATIC_IP_OCTAL "130" // dev only
+#define STATIC_IP_OCTAL "133" // dev only
 #define DEBUG_MEM false // leave as false
 #define FLUSH_DELAY 0 // for debugging crashes
 #define DBG_ON false // esp debug output
@@ -121,9 +121,9 @@
 #define DOT_MAX 50
 #define HOSTNAME_GRP 99
  
-#define APP_VER "10.9.3"
+#define APP_VER "10.9.4"
 // to determine if newer data files need to be loaded
-#define CFG_VER 37
+#define CFG_VER 38
 
 #if defined(AUXILIARY)
 #define APP_NAME "ESP-CAM_AUX" // max 15 chars

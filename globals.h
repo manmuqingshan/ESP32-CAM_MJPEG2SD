@@ -11,7 +11,7 @@
 #pragma once
 
 #if __has_include("./devUtilities.cpp")
-#define DEV_ONLY 
+#define DEV_ONLY
 #endif
 #ifdef DEV_ONLY
 // to compile with -Wall -Werror=all -Wextra
@@ -82,6 +82,8 @@
 #define GITHUB_HOST "raw.githubusercontent.com"
 #define FILLSTAR "****************************************************************"
 #define DELIM '~'
+
+// general defs
 #define ONEMEG (1024 * 1024)
 #define MAX_PWD_LEN 64
 #define MAX_HOST_LEN 32
@@ -99,6 +101,7 @@
 #define MAGIC_NUM 987654321
 #define MAX_FAIL 5
 #define PANIC_DELAY 5 // seconds before restart after panic
+#define DAY_LENGTH (24 * 60 * 60) // in secs
 
 // global mandatory app specific functions, in appSpecific.cpp 
 bool appDataFiles();
@@ -107,7 +110,7 @@ esp_err_t appSpecificWebHandler(httpd_req_t *req, const char* variable, const ch
 void appSpecificWsBinHandler(uint8_t* wsMsg, size_t wsMsgLen);
 void appSpecificWsHandler(const char* wsMsg);
 void appSpecificTelegramTask(void* p);
-void buildAppJsonString(bool filter);
+char* buildAppJsonString(bool filter);
 bool updateAppStatus(const char* variable, const char* value, bool fromUser = true);
 
 // global general utility functions in utils.cpp / utilsFS.cpp / peripherals.cpp etc
@@ -126,7 +129,7 @@ void dateFormat(char* inBuff, size_t inBuffLen, bool isFolder);
 void deleteFolderOrFile(const char* deleteThis);
 void devCheck();
 void devSetup();
-void doAppPing();
+void doAppPing(bool timeSynced);
 void doRestart(const char* restartStr);
 esp_err_t downloadFile(File& df, httpd_req_t* req);
 void emailAlert(const char* _subject, const char* _message);
@@ -282,6 +285,7 @@ extern bool heartBeatDone;
 extern TaskHandle_t heartBeatHandle;
 extern char portFwd[];
 extern float latLon[];
+extern uint32_t deepSleepTimer;
 
 // remote file server
 extern char fsServer[];
@@ -402,7 +406,7 @@ extern int I2Cscl;
   (method == HTTP_UNLINK) ? "UNLINK" : \
   "UNKNOWN"
 
-enum RemoteFail {SETASSIST, GETEXTIP, TGRAMCONN, FSFTP, EMAILCONN, EXTERNALHB, BLOCKLIST, GETEXTMSL, GETEXTMAG, REMFAILCNT}; // REMFAILCNT always last
+enum RemoteFail {SETASSIST, GETEXTIP, TGRAMCONN, FSFTP, EMAILCONN, EXTERNALHB, BLOCKLIST, GETEXTMSL, GETEXTMAG, GETEXTNOCT, REMFAILCNT}; // REMFAILCNT always last
 
 /*********************** Log formatting ************************/
 

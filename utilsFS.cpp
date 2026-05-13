@@ -317,8 +317,7 @@ void deleteFolderOrFile(const char* deleteThis) {
     LOG_WRN("Failed to open %s", fileName);
     return;
   }
-  if (df.isDirectory() && (strstr(fileName, "System") != NULL 
-      || strstr(fileName, "/") != NULL)) {
+  if (df.isDirectory() && (strstr(fileName, "System") != NULL)) {
     df.close();   
     LOG_WRN("Deletion of %s not permitted", fileName);
     delay(1000); // reduce thrashing on same error
