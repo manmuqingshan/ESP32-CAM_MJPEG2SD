@@ -125,13 +125,13 @@ void storeSensorData(bool fromStream) {
 }
 
 static void telemetryTask(void* pvParameters) {
+  uint32_t sampleInterval = 1000 * (teleInterval < 1 ? 1 : teleInterval);
   while (true) {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     capturing = true;
     int srtSeqNo = 1;
     uint32_t srtTime = 0;
     char timeStr[10];
-    uint32_t sampleInterval = 1000 * (teleInterval < 1 ? 1 : teleInterval);
     // open storage files
     if (STORAGE.exists(TELETEMP)) STORAGE.remove(TELETEMP);
     if (STORAGE.exists(SRTTEMP)) STORAGE.remove(SRTTEMP);

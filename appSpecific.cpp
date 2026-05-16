@@ -427,7 +427,7 @@ void appSpecificWsHandler(const char* wsMsg) {
           // status request
           buildJsonString(wsLen); // required config number 
           LOG_SEND("%s\n", jsonBuff);
-        break;   
+        break;
         case 'U': 
           // update or control request
           memcpy(jsonBuff, wsMsg + 1, wsLen); // remove 'U'
@@ -511,7 +511,6 @@ char* buildAppJsonString(bool filter) {
   if (percentLoaded == 100) percentLoaded = 0;
 #endif
   //p += sprintf(p, "\"vcc\":\"%i V\",", ESP.getVcc() / 1023.0F; );
-  *p = 0;
   return p;
 }
 

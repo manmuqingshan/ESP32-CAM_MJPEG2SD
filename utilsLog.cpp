@@ -372,7 +372,7 @@ void logSetup() {
     (DBG_ON) ? esp_log_level_set("*", DBG_LVL) : esp_log_level_set("*", ESP_LOG_NONE); // suppress esp log messages
     esp_log_set_vprintf(vprintfRedirect); // redirect esp_log output to app log
 
-    UBaseType_t poolMem = psramFound() ? MALLOC_CAP_SPIRAM : MALLOC_CAP_INTERNAL;
+    UBaseType_t poolMem = psramFound() ? MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT : MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
     poolBufs = (char (*)[MAX_OUT])heap_caps_malloc(LOG_BUF_COUNT * MAX_OUT, poolMem);
     if (!poolBufs) snprintf(startupFailure, SF_LEN, STARTUP_FAIL "Failed to alloc poolBufs");
     else {

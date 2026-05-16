@@ -207,6 +207,7 @@ void finalMsg(const char* finalTxt) {
 }
 #endif
 
+
 /*********************** PCF8591 ************************/
 
 #define PCF8591addr 0x48 // PCF8591 ADC
@@ -236,8 +237,11 @@ byte* getPCF8591() { // analog channels
 
 #define BMx280_Def 0x76 // BMX280 default address
 #define BMx280_Alt 0x77 // BMX280 alternative address
+static bool BMx280ok = false;
 
 #if USE_BMx280
+#define IS_POLLABLE
+
 #define STD_PRESSURE 1013.25 // reference pressure in mB/hPa at sea level
 #define DEGREE_SYMBOL "\xC2\xB0"
 
@@ -248,7 +252,7 @@ BMx280I2C bmxDef(BMx280_Def);
 BMx280I2C bmxAlt(BMx280_Alt);
 BMx280I2C* thisBmx;
 
-static bool BMx280ok = false;
+static float BMx280[4] = {0};
 static bool isBME = false;
 static float pressureMSL = STD_PRESSURE;
 
@@ -302,22 +306,22 @@ static bool setupBMx() {
   return BMx280ok;
 }
 
-float* getBMx280() { 
+static void updateBMx280() { 
   // get and return pressure, temperature, altitude, humidity
-  static float BMx280[4] = {0};
-  if (BMx280ok) {
-    thisBmx->measure();
-    uint32_t bmxWait = millis();
-    while(!thisBmx->hasValue() && millis() - bmxWait < SENSOR_TIMEOUT) delay(10);
-    if (thisBmx->hasValue()) {
-      // PSI = pascals * 0.000145
-      // ambient temperature (but affected by chip heating)
-      BMx280[0] = thisBmx->getTemperature(); // celsius 
-      BMx280[1] = thisBmx->getPressure() * 0.01;  // pascals to mB/hPa
-      BMx280[2] = 44330.0 * (1.0 - pow(BMx280[1] / pressureMSL, 1.0 / 5.255)); // altitude in meters
-      if (isBME) BMx280[3] = thisBmx->getHumidity(); // % relative humidity
-    }
+  thisBmx->measure();
+  uint32_t bmxWait = millis();
+  while(!thisBmx->hasValue() && millis() - bmxWait < SENSOR_TIMEOUT) delay(10);
+  if (thisBmx->hasValue()) {
+    // PSI = pascals * 0.000145
+    // ambient temperature (but affected by chip heating)
+    BMx280[0] = thisBmx->getTemperature(); // celsius 
+    BMx280[1] = thisBmx->getPressure() * 0.01;  // pascals to mB/hPa
+    BMx280[2] = 44330.0 * (1.0 - pow(BMx280[1] / pressureMSL, 1.0 / 5.255)); // altitude in meters
+    if (isBME) BMx280[3] = thisBmx->getHumidity(); // % relative humidity
   }
+}
+
+float* getBMx280() {
   return BMx280;
 }
 
@@ -336,10 +340,13 @@ static bool setupBMx() {
 
 /**************************** MPU6050 / MPU9250 ******************************/
 
-#if USE_MPU
-
 #define MPUxxxx_HIGH 0x69 // MPU6050 / MPU9250 I2C address if AD0 pulled high
 #define MPUxxxx_LOW 0x68  // MPU6050 / MPU9250 I2C address if AD0 grounded
+static bool MPU9250ok = false;
+static bool MPU6050ok = false;
+
+#if USE_MPU
+#define IS_POLLABLE
 
 // MPU model identifiers
 #define MPU9250_ID 0x71
@@ -362,8 +369,6 @@ static uint8_t MPUaddr;
 #define ACCEL_CONFIG 0x1C
 #define ACCEL_XOUT_H 0x3B
 #define PWR_MGMT_1 0x6B
-
-static bool MPU6050ok = false;
 
 bool sleepMPU6050(bool doSleep) {
   // power down or wake up MPU6050 
@@ -437,7 +442,6 @@ CSB: I2C Address selection BMP280
 #define LOCAL_MAG_DECLINATION 0.0f  // see https://www.magnetic-declination.com/ to obtain local value manually
 
 static MPU9250 mpu9250;
-static bool MPU9250ok = false;
 static float magDecl = LOCAL_MAG_DECLINATION;
 
 #define EXT_MAG_HOST "geomag.bgs.ac.uk"
@@ -553,54 +557,6 @@ float* getMPUdata() {
 bool identifyMPU(char* _mpuModel) {
   strcpy(_mpuModel, mpuModel);
   return haveMag;
-}
-
-
-/************** Poll devices for data ***************/
-
-static TaskHandle_t sensorPollHandle = NULL;
-bool accelUse = false;
-
-#ifdef ISCAM
-
-int accelDeg = 2;
-static bool haveMovement = false;
-
-static void getAccelMove() {
-  // determine if sufficient accelerometer movement has occurred
-  haveMovement = false;
-  static int posData[2][3];
-  int currMove = 0;
-  for (int i = 0; i < 3; i++) {
-    posData[0][i] = (int)mpuData[i];
-    currMove += abs(posData[0][i] - posData[1][i]);
-    posData[1][i] = posData[0][i];
-  }
-  if (currMove > accelDeg) haveMovement = true;
-}
-
-bool checkAccelMove() {
-  return haveMovement;
-}
-
-#endif // ISCAM
-
-static void sensorPollTask(void* p) {
-  while (true) {
-#ifdef USE_MPU9250
-    if (MPU9250ok) updateMPU9250data();
-#endif
-    if (MPU6050ok) updateMPU6050data();
-#ifdef ISCAM
-    if (accelUse) getAccelMove();
-#endif
-    delay(1000);
-  }
-}
-
-static void startPollTask() {
-  // poll input sensors for data
-  if (sensorPollHandle == NULL) xTaskCreateWithCaps(sensorPollTask, "sensorPollTask", SENSOR_STACK_SIZE, NULL, SENSOR_PRI, &sensorPollHandle, STACK_MEM); 
 }
 
 #endif // USE_MPU
@@ -968,6 +924,69 @@ void lcdWriteCustom(uint8_t charLoc) {
 }
 #endif
 
+/************** Poll devices for data ***************/
+
+bool accelUse = false;
+int accelDeg = 2;
+
+#ifdef IS_POLLABLE
+
+static TaskHandle_t sensorPollHandle = NULL;
+static int pollInterval = 1; // polling interval in secs
+
+#if USE_MPU && defined(ISCAM)
+
+static bool haveMovement = false;
+
+static void getAccelMove() {
+  // determine if sufficient accelerometer movement has occurred
+  haveMovement = false;
+  static int posData[2][3];
+  int currMove = 0;
+  for (int i = 0; i < 3; i++) {
+    posData[0][i] = (int)mpuData[i];
+    currMove += abs(posData[0][i] - posData[1][i]);
+    posData[1][i] = posData[0][i];
+  }
+  if (currMove > accelDeg) haveMovement = true;
+}
+
+bool checkAccelMove() {
+  return haveMovement;
+}
+
+#endif // ISCAM
+
+static void sensorPollTask(void* p) {
+  uint32_t sampleInterval = 1000 * (pollInterval < 1 ? 1 : pollInterval);
+  while (true) {
+    uint32_t startTime = millis();
+#if USE_MPU
+    if (MPU9250ok) updateMPU9250data();
+    if (MPU6050ok) updateMPU6050data();
+  #ifdef ISCAM
+    if (accelUse) getAccelMove();
+  #endif
+#endif
+#if USE_BMx280
+    if (BMx280ok) updateBMx280();
+#endif
+    // wait for next collection interval
+    uint32_t elapsedTime = millis() - startTime;
+    if (elapsedTime < sampleInterval) vTaskDelay(pdMS_TO_TICKS(sampleInterval - elapsedTime));
+  }
+}
+
+static void startPollTask() {
+  // poll input sensors for data
+#if USE_TELEM
+  pollInterval = srtInterval;
+#endif
+  if (sensorPollHandle == NULL) xTaskCreateWithCaps(sensorPollTask, "sensorPollTask", SENSOR_STACK_SIZE, NULL, SENSOR_PRI, &sensorPollHandle, STACK_MEM); 
+}
+
+#endif  // IS_POLLABLE
+
 /**************************** Setup ******************************/
 
 bool checkI2Cdevice(const char* devName) {
@@ -1002,7 +1021,7 @@ static bool prepI2Cdevices() {
 #if USE_LCD1602
     setupLCD1602();
 #endif
-#if (USE_BMx280 || USE_MPU)
+#ifdef IS_POLLABLE
     startPollTask();
 #endif
     res = true;
